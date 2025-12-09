@@ -12,6 +12,9 @@ import org.jspecify.annotations.Nullable;
 public record Review(
         @Nullable Long id, // null when the review has not been created yet
         //TODO: Implement review domain model.
+        @NonNull Pos pos,
+        @NonNull User author,
+        @NonNull String review,
         @NonNull Integer approvalCount, // is updated by the domain module
         @NonNull Boolean approved // is determined by the domain module
 ) implements DomainModel<Long> {

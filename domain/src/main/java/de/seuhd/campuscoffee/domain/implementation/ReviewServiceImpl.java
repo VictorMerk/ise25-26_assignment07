@@ -1,6 +1,7 @@
 package de.seuhd.campuscoffee.domain.implementation;
 
 import de.seuhd.campuscoffee.domain.configuration.ApprovalConfiguration;
+import de.seuhd.campuscoffee.domain.exceptions.ValidationException;
 import de.seuhd.campuscoffee.domain.model.objects.Review;
 import de.seuhd.campuscoffee.domain.ports.api.ReviewService;
 import de.seuhd.campuscoffee.domain.ports.data.CrudDataService;
@@ -46,7 +47,14 @@ public class ReviewServiceImpl extends CrudServiceImpl<Review, Long> implements 
     @Transactional
     public @NonNull Review upsert(@NonNull Review review) {
         // TODO: Implement the missing business logic here
-
+        if (review.pos().getId() != null) {
+            posDataService.getById(review.pos().getId());
+        }
+        
+        List<Review> existingReviews = reviewDataService.filter(review.pos(), review.author());
+        if (!existingReviews.isEmpty() && (review.getId() == null || !existingReviews.get(0).getId().equals(review.getId()))) {
+            throw new ValidationException("A user cannot create more than one review per POS.");
+        }
         return super.upsert(review);
     }
 
@@ -63,21 +71,28 @@ public class ReviewServiceImpl extends CrudServiceImpl<Review, Long> implements 
                 review.getId(), userId);
 
         // validate that the user exists
-        // TODO: Implement the required business logic here
+        userDataService.getById(userId);
 
         // validate that the review exists
-        // TODO: Implement the required business logic here
+        if (review.getId() == null) {
+            throw new ValidationException("Cannot approve a review that has not been persisted.");
+        }
+        reviewDataService.getById(review.getId());
 
         // a user cannot approve their own review
-        // TODO: Implement the required business logic here
+        if (review.author().getId().equals(userId)) {
+            throw new ValidationException("A user cannot approve their own review.");
+        }
 
         // increment approval count
-        // TODO: Implement the required business logic here
+        Review updatedReview = review.toBuilder()
+                .approvalCount(review.approvalCount() + 1)
+                .build();
 
         // update approval status to determine if the review now reaches the approval quorum
-        // TODO: Implement the required business logic here
+        Review reviewWithUpdatedStatus = updateApprovalStatus(updatedReview);
 
-        return reviewDataService.upsert(review);
+        return reviewDataService.upsert(reviewWithUpdatedStatus);
     }
 
     /**
